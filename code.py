@@ -1,125 +1,135 @@
 import time
-import terminalio
-import board
-from adafruit_matrixportal.matrixportal import MatrixPortal
-import displayio
-from adafruit_display_text import label
-from adafruit_display_shapes.rect import Rect
-from adafruit_display_text.scrolling_label import ScrollingLabel
-
-from adafruit_bitmap_font import bitmap_font
-import gc
 import re
+from adafruit_matrixportal.matrixportal import MatrixPortal
+import board
+import random
+from adafruit_bitmap_font import bitmap_font
 
+# Initialize MatrixPortal
+matrixportal = MatrixPortal(status_neopixel=board.NEOPIXEL)
 
-display = board.DISPLAY
-
-# Set up the weather location and API key
-weather_location = "Malmö, SE"
-weather_api_key = "YOUR_OPENWEATHERMAP_API_KEY_HERE"
+# Add text labels
+matrixportal.add_text(  # Header text
+    text_font="lib/font_free_mono_12/font.pcf",
+    text_position=(0, 1),
+    text_anchor_point=(0, 1),
+    scrolling=False,
+)
+matrixportal.add_text(  # Scrolling text
+    text_font="lib/font_free_sans_12/font.pcf",
+    text_position=(0, 1),
+    text_anchor_point=(0, 0),
+    scrolling=True,
+)
 
 # Set up the texttv URL
 texttv_url = "https://texttv.nu/api/get/100?includePlainTextContent=1"
 
-# Set up the display group for the weather forecast
-weather_group = displayio.Group()
-weather_label = label.Label(terminalio.FONT, color=0xFFFFFF,
-                            text="Loading...", x=85, y=30, scale=2, background_tight=True)
-weather_group.append(weather_label)
-#display.show(weather_label)
-""" 
-weather_group.append(
-    Rect(0, 0, pyportal.graphics.display.width, 30, fill=0x000000))
-weather_group.append(weather_label)
- """
-font = bitmap_font.load_font("ib16x16u.bdf")
-#font.load_glyphs(b'abcdefghjiklmnopqrstuvwxyzåäöABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890- ()')
-# Set up the display group for the scrolling text
-text_group = displayio.Group()
-text_label = ScrollingLabel(font, color=0xFFFFFF,
-                            text="TEXTTVqwertyuiopasdfghjklözxcvbnm,qwertyuiopåasdfghjklcxvbn", scale=4, x=11, y=80, max_characters=40, animate_time=0.2)
-text_group.append(text_label)
+# Function to set text color based on the number
+def set_text_color_based_on_number(text, index):
+    # Manually check for three-digit numbers
+    words = text.split()
+    for word in words:
+        if word.isdigit() and len(word) == 3:
+            number = int(word)
+            if number >= 130:
+                matrixportal.set_text_color(0xFFFF00, index)  # Yellow
+            else:
+                matrixportal.set_text_color(0x008080, index)  # Teal
+            return
+    matrixportal.set_text_color(0xFFFFFF, index)  # Default to white if no number is found
 
-# Set up the display group for both groups
-group = displayio.Group()
-group.append(weather_group)
-group.append(text_group)
-#print(group)
-display.show(group)
-
-# Set up the PyPortal Titano
-matrixportal = MatrixPortal(status_neopixel = board.NEOPIXEL,
-)
-# Set up the display
-#pyportal.splash.append(group)
-#pyportal.show(group)
-##pyportal.network.connect()
-
-# Get the weather data from OpenWeatherMap API
-"""    try:
-    weather_data = pyportal.network.fetch_data("http://api.openweathermap.org/data/2.5/forecast?q=Malmo, SE&appid=4acdd2457856e1ef6c064f1e928ea71e&cnt=8", json_path=[])  # 3 hour forecasts this is cnt*3=24 h
-    #print(weather_data[0])
-    #weather_label.text = f"{weather_data['name']}: {weather_data['main']['temp']}°C"
-    
-except (ValueError, RuntimeError) as e:
-    weather_label.text = "Error getting weather"
-
-hi = max([item['main']['temp'] for item in weather_data[0]['list']])-273.15
-lo = min([item['main']['temp'] for item in weather_data[0]['list']])-273.15
-print("hi: %.1f, lo: %.1f" % (hi, lo))
-
-weather_label.text = "%.1f\u00b0C" % (
-    float(weather_data[0]['list'][0]['main']['temp'])-273.15)
-#WEATHER_LABELS[3].text = "24h H: %.1f\u00b0 L: %.1f\u00b0" % (hi, lo)
-
-desc = weather_data[0]['list'][0]['weather'][0]['description']
-desc = desc[0].upper() + desc[1:]
-print(desc)
-del weather_data
-gc.collect()
-print(gc.mem_free())
-"""
 # Get the texttv data
 try:
-
     texttv_response = matrixportal.network.fetch(texttv_url)
-    #texttv_response = pyportal.network.requests.get(texttv_url)
     texttv_data = texttv_response.json()
-    #print(texttv_data[0]["content_plain"])
-    # Concatenate the strings and replace newlines
-    content_plain = ''.join(texttv_data[0]["content_plain"]).replace('\n', '')
-    del texttv_data
-    gc.collect()
-    
-    # Replace sequences of whitespace with a single space
-    content_plain = re.sub(r'\s+', ' ', content_plain)
-    #print(content_plain)
-    content_plain = content_plain.replace("Inrikes", "").replace(
-        "Utrikes", "").replace("Innehåll", "").strip(" *")
-    # Remove three-digit numbers and spaces
-    content_plain = re.sub(r'((^|\s)\d\d\d)(\s|$)', ' ** ', content_plain)
-    # Remove three-digit numbers and following f
-    content_plain = re.sub(r'((^|\s)\d\d\df?)(\s|$)', '', content_plain)
-    #print(content_plain)
-    """ 
-    content_plain = content_plain.replace("å", "\u00E5")
-    content_plain = content_plain.replace("ä", "\u00E4")
-    content_plain = content_plain.replace("ö", "\u00F6") 
-    """
-    print("ersatt", content_plain)
-    text_label.full_text = content_plain
-    print("text_label.text", text_label.text)
+    content = texttv_data[0]["content_plain"][0]
+    print("response", content)
+
+    # Remove everything up to and including the year
+    remaining_text = re.sub(r'.*?20[2-3]\d', '', content, 1)
+
+    # Step 2: Manually split remaining content by three-digit numbers
+    segments = []
+    current_segment = []
+    temp_segment = ""
+
+    # Loop over each character to manually detect where to split based on three-digit numbers
+    for char in remaining_text:
+        temp_segment += char
+
+        # Detect when a three-digit number is found
+        if len(temp_segment) >= 3 and temp_segment[-3:].isdigit():
+            if temp_segment[-3:] == "000":
+                continue  # Skip splitting at "000"
+            # Check if it's a three-digit number (with optional 'f')
+            if temp_segment[-3:].isdigit() or (len(temp_segment) >= 4 and temp_segment[-4] == 'f' and temp_segment[-3:].isdigit()):
+                if current_segment:
+                    segments.append(' '.join(current_segment).strip())
+                current_segment = [temp_segment.strip()]
+                temp_segment = ""
+        elif char == "\n":
+            # Avoid splitting on newlines or other unwanted characters
+            continue
+
+    if temp_segment.strip():
+        current_segment.append(temp_segment.strip())
+
+    if current_segment:
+        segments.append(' '.join(current_segment).strip())
+
+    # Step 3: Remove everything after "Inrikes", "Utrikes", or "Innehåll"
+    cleaned_segments = []
+    for seg in segments:
+        if "Inrikes" in seg or "Utrikes" in seg or "Innehåll" in seg:
+            break
+        # Normalize spaces
+        words = seg.split()
+        cleaned_words = []
+        for word in words:
+            cleaned_words.append(word)
+        cleaned_segment = ' '.join(cleaned_words).replace(" - ", " ").strip()
+        cleaned_segments.append(cleaned_segment)
+
+    # Final result list
+    result_list = cleaned_segments
+    print("reslist", result_list)
 
 except Exception as e:
-    text_label.text = "Error getting TextTV data"
-    print("error", e)
-#text_label.scroll_speed = 0.05
-#text_label.scroll_delay = 0.05
-#text_label.scroll_style = label.ScrollStyle.SINGLE
-# Wait a bit before refreshing the display
+    print("Error:", e)
+    result_list = ["Pauliskolan", "Teknikprogrammet", "Error fetching data"]
+
+# Main loop
+current_index = 0
+#matrixportal.set_text(result_list[current_index], 1)
+#set_text_color_based_on_number(result_list[current_index], 1)
+# Fetch and set the local time
+matrixportal.get_local_time()
+last_update_time = time.monotonic()
+now= time.localtime()
+# Display the header text on the matrix portal
+
 
 while True:
-    text_label.update()
+    # Set a random color for the header text
+    random_color = random.randint(0, 0xFFFFFF)
+    matrixportal.set_text_color(random_color, 0)
+    header_text = f"{now.tm_hour:02d}:{now.tm_min:02d} {now.tm_mday}{'a' if now.tm_mday in [1, 2, 21, 22] else 'e'}"
+    matrixportal.set_text(header_text, 0)
+    
+    # Scroll the non-header text
+    matrixportal.set_text(result_list[current_index], 1)
+    set_text_color_based_on_number(result_list[current_index], 1)
+    matrixportal.scroll_text()
 
-""" content_plain = "SVT Täxt tårsdög 02 mar 2023                                                                                                                                                                                                               Nö skottlossning i Farsta i Stockholm                                           Skott mot lägenhetsdörr * Två gripna                     106                                                                    von der Leyen besöker                   president Biden i USA                            133                                                            Flicka allvarligt skadad i knivattack                                           Göteborgspolisen har gripit misstänkt                    110                                                            Jazzikonen Wayne Shorter är död - 150                                             Februari: Milt och rätt blåsigt 417f"
- """
+    current_index += 1
+    if current_index >= len(result_list):
+        current_index = 0  # Reset to the 
+
+    # Update the scrolling text after it has scrolled through completely
+    current_time = time.monotonic()
+    if current_time - last_update_time > 600: #update texttv and weather
+        last_update_time = current_time
+
+    # Perform other tasks here
+    # ...

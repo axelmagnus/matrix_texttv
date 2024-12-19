@@ -102,7 +102,7 @@ while True:
     if time.localtime()[3] != prv_hour:
         print("New Hour, fetching new data...")
             # Fetch and store guide info response
-            als_data = matrixportal.network.fetch(DATA_SOURCE)
+        als_data = matrixportal.network.fetch(DATA_SOURCE)
         prv_hour = time.localtime()[3]
 
     # Cycle through guides retrieved
